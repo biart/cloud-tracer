@@ -27,7 +27,29 @@ include_directories (${GLFW3_INCLUDE_DIRS})
 
 
 # Main executable.
-add_executable (cloud-tracer src/main.cpp)
+set(cloud_tracer_sources_main
+	src/application.cpp
+	src/main.cpp
+	src/window.cpp)
+set(cloud_tracer_sources_vulkan
+	src/vulkan/debug_messenger.cpp
+	src/vulkan/instance.cpp)
+set(cloud_tracer_headers_main
+	src/application.h
+	src/window.h)
+set(cloud_tracer_headers_vulkan
+	src/vulkan/debug_messenger.h
+	src/vulkan/exception.h
+	src/vulkan/instance.h)
+set(cloud_tracer_sources_all
+	${cloud_tracer_sources_main}
+	${cloud_tracer_sources_vulkan})
+set(cloud_tracer_headers_all
+	${cloud_tracer_headers_main}
+	${cloud_tracer_headers_vulkan})
+source_group("" FILES ${cloud_tracer_sources_main} ${cloud_tracer_headers_main})
+source_group("vulkan" FILES ${cloud_tracer_sources_vulkan} ${cloud_tracer_headers_vulkan})
+add_executable (cloud-tracer ${cloud_tracer_sources_all} ${cloud_tracer_headers_all})
+target_include_directories(cloud-tracer PRIVATE src)
 target_link_libraries(cloud-tracer ${Vulkan_LIBRARIES})
 target_link_libraries(cloud-tracer ${GLFW3_LIBRARIES})
-
