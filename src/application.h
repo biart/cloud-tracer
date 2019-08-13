@@ -4,9 +4,11 @@
 #include <memory>
 #include <string>
 
-#include "vulkan/debug_messenger.h"
-#include "vulkan/instance.h"
-#include "window.h"
+#include <vulkan/debug_messenger.h>
+#include <vulkan/device.h>
+#include <vulkan/instance.h>
+
+#include <window.h>
 
 
 namespace ct
@@ -43,7 +45,9 @@ private:
     const bool                                  debug;
     std::unique_ptr<vulkan::Instance>           vk_instance;
     std::unique_ptr<vulkan::DebugMessenger>     vk_debug_messenger;
+    std::unique_ptr<vulkan::Device>             vk_device;
     std::unique_ptr<Window>                     window;
+    std::unique_ptr<Window::Surface>            surface;
 };
 
 }

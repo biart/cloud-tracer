@@ -1,13 +1,14 @@
-#include <algorithm>
-#include <cassert>
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <cassert>
 #include <string>
 #include <vector>
 
 #include <vulkan/vulkan.h>
 
-#include "vulkan/exception.h"
+#include <vulkan/exception.h>
 
 
 namespace ct
@@ -31,7 +32,24 @@ public:
 
     VkInstance GetHandler() const;
 
+    const std::vector<VkPhysicalDevice>& GetPhysicalDevices() const
+    {
+        if (physical_devices.empty())
+        {
+            uint32_t device_count = 0;
+            vkEnumeratePhysicalDevices(vk_instance, &device_count, nullptr);
+            physical_devices.resize(device_count);
+            vkEnumeratePhysicalDevices(vk_instance, &device_count, physical_devices.data());
+        }
+
+        return physical_devices;
+    }
+
     const bool validation_layer_enabled;
+    const std::array<const char*, 1> validation_layer_names =
+    {
+        "VK_LAYER_KHRONOS_validation"
+    };
 
 private:
     template <typename Proc>
@@ -83,13 +101,10 @@ private:
 
     VkInstance      vk_instance;
 
+    mutable std::vector<VkPhysicalDevice> physical_devices;
+
     mutable PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT = nullptr;
     mutable PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT = nullptr;
-
-    const char* validation_layer_names[1] =
-    {
-        "VK_LAYER_KHRONOS_validation"
-    };
 
 public:
     GetProcAddrHelper<PFN_vkCreateDebugUtilsMessengerEXT> CreateDebugUtilsMessenger =
