@@ -7,6 +7,7 @@
 #include <vulkan/debug_messenger.h>
 #include <vulkan/device.h>
 #include <vulkan/instance.h>
+#include <vulkan/swapchain.h>
 
 #include <window.h>
 
@@ -46,6 +47,7 @@ private:
     std::unique_ptr<vulkan::Instance>           vk_instance;
     std::unique_ptr<vulkan::DebugMessenger>     vk_debug_messenger;
     std::unique_ptr<vulkan::Device>             vk_device;
+    std::unique_ptr<vulkan::Swapchain>          vk_swapchain;
     std::unique_ptr<Window>                     window;
     std::unique_ptr<Window::Surface>            surface;
 };

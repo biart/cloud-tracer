@@ -17,7 +17,7 @@ set (CMAKE_MODULE_PATH
 
 
 # Find required packages.
-find_package (Vulkan REQUIRED)
+find_package (Vulkan 1.1.130 REQUIRED)
 find_package (GLFW3 3.2 REQUIRED)
 
 
@@ -28,27 +28,29 @@ include_directories (${GLFW3_INCLUDE_DIRS})
 
 # Main executable.
 set(cloud_tracer_sources_main
-	src/application.cpp
-	src/main.cpp
-	src/window.cpp)
+    src/application.cpp
+    src/main.cpp
+    src/window.cpp)
 set(cloud_tracer_sources_vulkan
-	src/vulkan/device.cpp
-	src/vulkan/debug_messenger.cpp
-	src/vulkan/instance.cpp)
+    src/vulkan/device.cpp
+    src/vulkan/debug_messenger.cpp
+    src/vulkan/instance.cpp
+    src/vulkan/swapchain.cpp)
 set(cloud_tracer_headers_main
-	src/application.h
-	src/window.h)
+    src/application.h
+    src/window.h)
 set(cloud_tracer_headers_vulkan
     src/vulkan/device.h
-	src/vulkan/debug_messenger.h
-	src/vulkan/exception.h
-	src/vulkan/instance.h)
+    src/vulkan/debug_messenger.h
+    src/vulkan/exception.h
+    src/vulkan/instance.h
+    src/vulkan/swapchain.h)
 set(cloud_tracer_sources_all
-	${cloud_tracer_sources_main}
-	${cloud_tracer_sources_vulkan})
+    ${cloud_tracer_sources_main}
+    ${cloud_tracer_sources_vulkan})
 set(cloud_tracer_headers_all
-	${cloud_tracer_headers_main}
-	${cloud_tracer_headers_vulkan})
+    ${cloud_tracer_headers_main}
+    ${cloud_tracer_headers_vulkan})
 source_group("" FILES ${cloud_tracer_sources_main} ${cloud_tracer_headers_main})
 source_group("vulkan" FILES ${cloud_tracer_sources_vulkan} ${cloud_tracer_headers_vulkan})
 add_executable (cloud-tracer ${cloud_tracer_sources_all} ${cloud_tracer_headers_all})

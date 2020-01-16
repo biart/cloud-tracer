@@ -27,6 +27,7 @@ void Application::Run()
         vk_instance->GetPhysicalDevices()[0],
         VK_QUEUE_GRAPHICS_BIT,
         surface->GetHandler()));
+    vk_swapchain.reset(new vulkan::Swapchain(*vk_device, DefaultWidth, DefaultHeight));
 
     Start();
     while (!window->ShouldClose())
@@ -36,6 +37,7 @@ void Application::Run()
     }
     Destroy();
 
+    vk_swapchain.release();
     vk_device.release();
     surface.release();
     vk_debug_messenger.release();
