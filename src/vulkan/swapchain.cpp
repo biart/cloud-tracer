@@ -90,14 +90,14 @@ namespace ct
             create_info.clipped = VK_TRUE;
             create_info.oldSwapchain = VK_NULL_HANDLE;
 
-            if (vkCreateSwapchainKHR(device.GetHandler(), &create_info, nullptr, &vk_swapchain) != VK_SUCCESS)
+            if (vkCreateSwapchainKHR(device.GetHandle(), &create_info, nullptr, &vk_swapchain) != VK_SUCCESS)
             {
                 throw Exception("Failed to create swapchain");
             }
 
-            vkGetSwapchainImagesKHR(device.GetHandler(), vk_swapchain, &image_count, nullptr);
+            vkGetSwapchainImagesKHR(device.GetHandle(), vk_swapchain, &image_count, nullptr);
             swapchain_images.resize(image_count);
-            vkGetSwapchainImagesKHR(device.GetHandler(), vk_swapchain, &image_count, swapchain_images.data());
+            vkGetSwapchainImagesKHR(device.GetHandle(), vk_swapchain, &image_count, swapchain_images.data());
         }
 
         const std::vector<VkImage>& Swapchain::GetImages() const
@@ -122,7 +122,7 @@ namespace ct
 
         Swapchain::~Swapchain()
         {
-            vkDestroySwapchainKHR(device.GetHandler(), vk_swapchain, nullptr);
+            vkDestroySwapchainKHR(device.GetHandle(), vk_swapchain, nullptr);
         }
 
     }

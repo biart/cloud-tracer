@@ -93,14 +93,14 @@ Device::Device(
         create_info.enabledLayerCount = 0;
     }
 
-    if (vkCreateDevice(physical_device, &create_info, nullptr, &device) != VK_SUCCESS)
+    if (vkCreateDevice(physical_device, &create_info, nullptr, &vk_device) != VK_SUCCESS)
     {
         throw Exception("Failed to create logical device");
     }
 
-    if (graphics_queue_family_index != ~0u) vkGetDeviceQueue(device, graphics_queue_family_index, 0, &graphics_queue);
-    if (present_queue_family_index != ~0u) vkGetDeviceQueue(device, present_queue_family_index, 0, &present_queue);
-    if (compute_queue_family_index != ~0u) vkGetDeviceQueue(device, compute_queue_family_index, 0, &compute_queue);
+    if (graphics_queue_family_index != ~0u) vkGetDeviceQueue(vk_device, graphics_queue_family_index, 0, &graphics_queue);
+    if (present_queue_family_index != ~0u) vkGetDeviceQueue(vk_device, present_queue_family_index, 0, &present_queue);
+    if (compute_queue_family_index != ~0u) vkGetDeviceQueue(vk_device, compute_queue_family_index, 0, &compute_queue);
 
     if (present_queue_family_index != ~0u)
     {
@@ -109,9 +109,9 @@ Device::Device(
 }
 
 
-VkDevice Device::GetHandler() const
+VkDevice Device::GetHandle() const
 {
-    return device;
+    return vk_device;
 }
 
 
@@ -244,7 +244,7 @@ const std::vector<VkPresentModeKHR>& Device::GetPresentModes() const
 
 Device::~Device()
 {
-    vkDestroyDevice(device, nullptr);
+    vkDestroyDevice(vk_device, nullptr);
 }
 
 }

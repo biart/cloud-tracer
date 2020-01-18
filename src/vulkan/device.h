@@ -22,7 +22,7 @@ public:
         InvalidQueueFamilyIndex = ~0u
     };
 
-    VkDevice GetHandler() const;
+    VkDevice GetHandle() const;
     VkPhysicalDevice GetPhysicalDevice() const;
     VkSurfaceKHR GetSurface() const;
 
@@ -44,7 +44,7 @@ public:
     ~Device();
 
 private:
-    VkDevice                    device;
+    VkDevice                    vk_device;
     const VkPhysicalDevice      physical_device;
     const VkSurfaceKHR          surface;
 

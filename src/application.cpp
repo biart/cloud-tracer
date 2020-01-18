@@ -1,6 +1,9 @@
 #include "application.h"
 
 
+#include <vulkan/memory.h>
+
+
 namespace ct
 {
 
@@ -25,9 +28,10 @@ void Application::Run()
     vk_device.reset(new vulkan::Device(
         *vk_instance,
         vk_instance->GetPhysicalDevices()[0],
-        VK_QUEUE_GRAPHICS_BIT,
+        VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT,
         surface->GetHandler()));
     vk_swapchain.reset(new vulkan::Swapchain(*vk_device, DefaultWidth, DefaultHeight));
+
 
     Start();
     while (!window->ShouldClose())

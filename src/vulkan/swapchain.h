@@ -1,3 +1,6 @@
+#pragma once
+
+
 #include <vulkan/device.h>
 
 
@@ -10,6 +13,7 @@ namespace
             container.push_back(element);
     }
 }
+
 
 namespace ct
 {
