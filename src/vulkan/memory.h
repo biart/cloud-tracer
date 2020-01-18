@@ -2,6 +2,7 @@
 
 
 #include <vulkan/device.h>
+#include <vulkan/scoped.h>
 
 
 namespace ct
@@ -85,10 +86,15 @@ ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(const ct::vulkan:
     if (Source)         buffer_create_info.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     if (Destination)    buffer_create_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
     if (vkCreateBuffer(device.GetHandle(), &buffer_create_info, nullptr, &vk_buffer) != VK_SUCCESS)
     {
         throw Exception("Cannot create buffer");
     }
+    auto vk_buffer_scoped = MakeScoped(vk_buffer, [vk_device = device.GetHandle()](VkBuffer& buffer)
+    {
+        vkDestroyBuffer(vk_device, buffer, nullptr);
+    });
 
     VkMemoryRequirements memory_requirements;
     vkGetBufferMemoryRequirements(device.GetHandle(), vk_buffer, &memory_requirements);
@@ -99,8 +105,7 @@ ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(const ct::vulkan:
     const std::uint32_t memory_type_index = FindSuitableMemoryTypeIndex(
         memory_properties,
         memory_requirements,
-        BufferMemoryTypeTraits<MemoryType>::vk_memory_property_flags);
-    // TODO: Release buffer on throw.
+        MemoryType::vk_memory_property_flags);
 
     allocation_size = memory_requirements.size;
 
@@ -110,8 +115,10 @@ ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(const ct::vulkan:
     allocate_info.memoryTypeIndex = memory_type_index;
     if (vkAllocateMemory(device.GetHandle(), &allocate_info, nullptr, &vk_memory) != VK_SUCCESS)
     {
-        throw Exception(std::string("Cannot allocate ") + BufferMemoryTypeTraits<MemoryType>::name + " memory");
+        throw Exception(std::string("Cannot allocate ") + MemoryType::name + " memory");
     }
+
+    vk_buffer_scoped.Release();
 }
 
 
@@ -155,7 +162,7 @@ VkDeviceMemory ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetMemory
 }
 
 template <typename T, typename MemoryType, bool Source, bool Destination>
-static std::uint32_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::FindSuitableMemoryTypeIndex(
+std::uint32_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::FindSuitableMemoryTypeIndex(
     const VkPhysicalDeviceMemoryProperties& physical_device_memory_properties,
     const VkMemoryRequirements& memory_requirements,
     const VkMemoryPropertyFlags             requested_memory_properties)
@@ -174,7 +181,7 @@ static std::uint32_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Fin
 }
 
 template <typename T, typename MemoryType, bool Source, bool Destination>
-static bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::IsMemorySupportedByDevice(
+bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::IsMemorySupportedByDevice(
     const std::uint32_t             memory_type_index,
     const VkMemoryRequirements& memory_requirements)
 {
@@ -182,7 +189,7 @@ static bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::IsMemorySupp
 }
 
 template <typename T, typename MemoryType, bool Source, bool Destination>
-static bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::DoesMemoryHaveProperties(
+bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::DoesMemoryHaveProperties(
     const VkMemoryType& memory_type,
     const VkMemoryPropertyFlags     requested_memory_properties)
 {

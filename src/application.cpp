@@ -33,6 +33,8 @@ void Application::Run()
         surface->GetHandler()));
     vk_swapchain.reset(new vulkan::Swapchain(*vk_device, DefaultWidth, DefaultHeight));
 
+    ct::vulkan::Buffer<float, ct::vulkan::HostMemory> buffer(*vk_device, 1024);
+
     Start();
     while (!window->ShouldClose())
     {

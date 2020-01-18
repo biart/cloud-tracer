@@ -55,6 +55,7 @@ set(cloud_tracer_headers_vulkan
     src/vulkan/exception.h
     src/vulkan/instance.h
     src/vulkan/memory.h
+    src/vulkan/scoped.h
     src/vulkan/swapchain.h)
 set(cloud_tracer_headers_utils
     src/utils/ignore_unused.h)
