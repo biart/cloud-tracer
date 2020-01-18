@@ -53,11 +53,11 @@ private:
     VkSurfaceCapabilitiesKHR                    surface_capabilities;
 
     VkQueue graphics_queue = VK_NULL_HANDLE;
-    std::uint32_t graphics_queue_family_index = ~0;
+    std::uint32_t graphics_queue_family_index = ~0u;
     VkQueue present_queue = VK_NULL_HANDLE;
-    std::uint32_t present_queue_family_index = ~0;
+    std::uint32_t present_queue_family_index = ~0u;
     VkQueue compute_queue = VK_NULL_HANDLE;
-    std::uint32_t compute_queue_family_index = ~0;
+    std::uint32_t compute_queue_family_index = ~0u;
 
     const std::array<const char*, 1> present_mode_extensions =
     {

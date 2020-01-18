@@ -26,6 +26,14 @@ include_directories (${Vulkan_INCLUDE_DIRS})
 include_directories (${GLFW3_INCLUDE_DIRS})
 
 
+# Set strict warnings and treat them as errors
+if (MSVC)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
+
 # Main executable.
 set(cloud_tracer_sources_main
     src/application.cpp
@@ -37,6 +45,7 @@ set(cloud_tracer_sources_vulkan
     src/vulkan/instance.cpp
     src/vulkan/memory.cpp
     src/vulkan/swapchain.cpp)
+set(cloud_tracer_sources_utils)
 set(cloud_tracer_headers_main
     src/application.h
     src/window.h)
@@ -47,14 +56,19 @@ set(cloud_tracer_headers_vulkan
     src/vulkan/instance.h
     src/vulkan/memory.h
     src/vulkan/swapchain.h)
+set(cloud_tracer_headers_utils
+    src/utils/ignore_unused.h)
 set(cloud_tracer_sources_all
     ${cloud_tracer_sources_main}
-    ${cloud_tracer_sources_vulkan})
+    ${cloud_tracer_sources_vulkan}
+    ${cloud_tracer_sources_utils})
 set(cloud_tracer_headers_all
     ${cloud_tracer_headers_main}
-    ${cloud_tracer_headers_vulkan})
+    ${cloud_tracer_headers_vulkan}
+    ${cloud_tracer_headers_utils})
 source_group("" FILES ${cloud_tracer_sources_main} ${cloud_tracer_headers_main})
 source_group("vulkan" FILES ${cloud_tracer_sources_vulkan} ${cloud_tracer_headers_vulkan})
+source_group("utils" FILES ${cloud_tracer_sources_utils} ${cloud_tracer_headers_utils})
 add_executable (cloud-tracer ${cloud_tracer_sources_all} ${cloud_tracer_headers_all})
 target_include_directories(cloud-tracer PRIVATE src)
 target_link_libraries(cloud-tracer ${Vulkan_LIBRARIES})

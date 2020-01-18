@@ -1,6 +1,8 @@
 #include "application.h"
 
 
+#include <utils/ignore_unused.h>
+
 #include <vulkan/memory.h>
 
 
@@ -66,8 +68,10 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Application::DebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT          message_severity,
     VkDebugUtilsMessageTypeFlagsEXT                 message_type,
     const VkDebugUtilsMessengerCallbackDataEXT*     callback_data,
-    void* user_data)
+    void*                                           user_data)
 {
+    utils::IgnoreUnused(message_severity, message_type, user_data);
+
     std::cout << "Vulkan validation layer: " << callback_data->pMessage << std::endl;
 
     return VK_FALSE;
