@@ -2,6 +2,8 @@
 
 #include <unordered_set>
 
+#include <vulkan/instance.h>
+
 
 namespace ct
 {

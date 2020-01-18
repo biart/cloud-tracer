@@ -2,7 +2,6 @@
 
 
 #include <utils/ignore_unused.h>
-
 #include <vulkan/memory.h>
 
 
@@ -33,7 +32,6 @@ void Application::Run()
         VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT,
         surface->GetHandler()));
     vk_swapchain.reset(new vulkan::Swapchain(*vk_device, DefaultWidth, DefaultHeight));
-
 
     Start();
     while (!window->ShouldClose())

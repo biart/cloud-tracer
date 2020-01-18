@@ -1,15 +1,18 @@
 #pragma once
 
+
 #include <cassert>
 
-#include "vulkan/exception.h"
-#include "vulkan/instance.h"
+#include <vulkan/vulkan.h>
 
 
 namespace ct
 {
 namespace vulkan
 {
+
+class Instance;
+
 
 class DebugMessenger
 {

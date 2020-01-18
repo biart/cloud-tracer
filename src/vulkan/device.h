@@ -1,12 +1,19 @@
 #pragma once
 
-#include <vulkan/instance.h>
+
+#include <array>
+#include <vector>
+
+#include <vulkan/vulkan.h>
 
 
 namespace ct
 {
 namespace vulkan
 {
+
+class Instance;
+
 
 class Device
 {
@@ -17,7 +24,7 @@ public:
         VkQueueFlags                requested_queue_flags,
         const VkSurfaceKHR          surface = VK_NULL_HANDLE);
 
-    enum
+    enum : std::uint32_t
     {
         InvalidQueueFamilyIndex = ~0u
     };
@@ -53,11 +60,11 @@ private:
     VkSurfaceCapabilitiesKHR                    surface_capabilities;
 
     VkQueue graphics_queue = VK_NULL_HANDLE;
-    std::uint32_t graphics_queue_family_index = ~0u;
+    std::uint32_t graphics_queue_family_index = InvalidQueueFamilyIndex;
     VkQueue present_queue = VK_NULL_HANDLE;
-    std::uint32_t present_queue_family_index = ~0u;
+    std::uint32_t present_queue_family_index = InvalidQueueFamilyIndex;
     VkQueue compute_queue = VK_NULL_HANDLE;
-    std::uint32_t compute_queue_family_index = ~0u;
+    std::uint32_t compute_queue_family_index = InvalidQueueFamilyIndex;
 
     const std::array<const char*, 1> present_mode_extensions =
     {

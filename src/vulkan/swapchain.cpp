@@ -1,5 +1,10 @@
 #include "swapchain.h"
 
+#include <cassert>
+
+#include <vulkan/device.h>
+#include <vulkan/exception.h>
+
 
 namespace ct
 {

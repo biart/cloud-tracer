@@ -1,7 +1,10 @@
 #pragma once
 
 
-#include <vulkan/device.h>
+#include <algorithm>
+#include <vector>
+
+#include <vulkan/vulkan.h>
 
 
 namespace
@@ -25,6 +28,9 @@ namespace ct
 
     namespace vulkan
     {
+        class Device;
+
+
         class Swapchain
         {
         public:
