@@ -2,7 +2,7 @@
 
 
 #include <vulkan/device.h>
-#include <vulkan/scoped.h>
+#include <vulkan/object.h>
 
 
 namespace ct
@@ -58,17 +58,6 @@ namespace ct
             VkDeviceMemory      vk_memory;
             VkBuffer            vk_buffer;
         };
-
-        template <typename T, typename SrcMemoryType, typename DstMemoryType, bool Dst0, bool Src1>
-        void Transfer(VkCommandBuffer cmd_buffer, const Buffer<T, SrcMemoryType, true, Dst0>& from, Buffer<T, DstMemoryType, Src1, true>& to)
-        {
-            VkBufferCopy copy_region;
-            copy_region.srcOffset = 0u;
-            copy_region.dstOffset = 0u;
-            copy_region.size = from.GetSizeInBytes();
-            assert(copy_region.size == to.GetSizeInBytes());
-            vkCmdCopyBuffer(cmd_buffer, from.GetBufferHandle(), to.GetBufferHandle(), 1u, &copy_region);
-        }
     }
 }
 
@@ -117,6 +106,8 @@ ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(const ct::vulkan:
     {
         throw Exception(std::string("Cannot allocate ") + MemoryType::name + " memory");
     }
+
+    vkBindBufferMemory(device.GetHandle(), vk_buffer, vk_memory, 0u);
 
     vk_buffer_scoped.Release();
 }

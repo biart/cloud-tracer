@@ -2,6 +2,7 @@
 
 
 #include <utils/ignore_unused.h>
+#include <vulkan/command_pool.h>
 #include <vulkan/memory.h>
 
 
@@ -29,19 +30,33 @@ void Application::Run()
     vk_device.reset(new vulkan::Device(
         *vk_instance,
         vk_instance->GetPhysicalDevices()[0],
-        VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT,
+        ct::vulkan::PresentQueue | ct::vulkan::ComputeQueue | ct::vulkan::GraphicsQueue,
         surface->GetHandler()));
     vk_swapchain.reset(new vulkan::Swapchain(*vk_device, DefaultWidth, DefaultHeight));
 
-    ct::vulkan::Buffer<float, ct::vulkan::HostMemory> buffer(*vk_device, 1024);
-
-    Start();
-    while (!window->ShouldClose())
     {
-        Update();
-        glfwPollEvents();
+        ct::vulkan::Buffer<float, ct::vulkan::DeviceMemory, true, false> stagingBuffer(*vk_device, 1024);
+        ct::vulkan::Buffer<float, ct::vulkan::DeviceMemory, false, true> buffer(*vk_device, 1024);
+
+        ct::vulkan::CommandPool command_pool(*vk_device, ct::vulkan::ComputeQueue);
+
+        // Command buffer: copy from host to device
+        ct::vulkan::CommandBuffer copy_command_buffer(command_pool);
+        {
+            ct::vulkan::CommandRecorder recorder(copy_command_buffer);
+            recorder.Transfer(stagingBuffer, buffer);
+        }
+
+        Start();
+        while (!window->ShouldClose())
+        {
+            Update();
+            ct::vulkan::SubmitCommands(copy_command_buffer);
+            command_pool.WaitForQueue();
+            glfwPollEvents();
+        }
+        Destroy();
     }
-    Destroy();
 
     vk_swapchain.release();
     vk_device.release();

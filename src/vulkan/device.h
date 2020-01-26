@@ -4,7 +4,7 @@
 #include <array>
 #include <vector>
 
-#include <vulkan/vulkan.h>
+#include <vulkan/object.h>
 
 
 namespace ct
@@ -15,13 +15,27 @@ namespace vulkan
 class Instance;
 
 
-class Device
+enum QueueType : std::uint32_t
+{
+    ComputeQueue = VK_QUEUE_COMPUTE_BIT,
+    GraphicsQueue = VK_QUEUE_GRAPHICS_BIT,
+    PresentQueue = VK_QUEUE_PROTECTED_BIT
+};
+
+
+const std::array<QueueType, 3>& AllQueueTypes();
+
+
+using QueueFlags = std::uint32_t;
+
+
+class Device : public Object<VkDevice>
 {
 public:
     Device(
         const Instance&             vk_instance,
         const VkPhysicalDevice      physical_device,
-        VkQueueFlags                requested_queue_flags,
+        QueueFlags                  requested_queue_flags,
         const VkSurfaceKHR          surface = VK_NULL_HANDLE);
 
     enum : std::uint32_t
@@ -29,20 +43,13 @@ public:
         InvalidQueueFamilyIndex = ~0u
     };
 
-    VkDevice GetHandle() const;
     VkPhysicalDevice GetPhysicalDevice() const;
     VkSurfaceKHR GetSurface() const;
 
-    bool SupportsGraphics() const;
-    bool SupportsPresent() const;
-    bool SupportsCompute() const;
+    bool Supports(const QueueType type) const;
 
-    VkQueue GetGraphicsQueue() const;
-    std::uint32_t GetGraphicsQueueFamilyIndex() const;
-    VkQueue GetPresentQueue() const;
-    std::uint32_t GetPresentQueueFamilyIndex() const;
-    VkQueue GetComputeQueue() const;
-    std::uint32_t GetComputeQueueFamilyIndex() const;
+    VkQueue GetQueue(const QueueType type) const;
+    std::uint32_t GetQueueFamilyIndex(const QueueType type) const;
 
     const VkSurfaceCapabilitiesKHR& GetSurfaceCapabilities() const;
     const std::vector<VkSurfaceFormatKHR>& GetSurfaceFormats() const;
@@ -51,7 +58,6 @@ public:
     ~Device();
 
 private:
-    VkDevice                    vk_device;
     const VkPhysicalDevice      physical_device;
     const VkSurfaceKHR          surface;
 

@@ -40,6 +40,7 @@ set(cloud_tracer_sources_main
     src/main.cpp
     src/window.cpp)
 set(cloud_tracer_sources_vulkan
+    src/vulkan/command_pool.cpp
     src/vulkan/device.cpp
     src/vulkan/debug_messenger.cpp
     src/vulkan/instance.cpp
@@ -50,12 +51,13 @@ set(cloud_tracer_headers_main
     src/application.h
     src/window.h)
 set(cloud_tracer_headers_vulkan
+    src/vulkan/command_pool.h
     src/vulkan/device.h
     src/vulkan/debug_messenger.h
     src/vulkan/exception.h
     src/vulkan/instance.h
     src/vulkan/memory.h
-    src/vulkan/scoped.h
+    src/vulkan/object.h
     src/vulkan/swapchain.h)
 set(cloud_tracer_headers_utils
     src/utils/ignore_unused.h)

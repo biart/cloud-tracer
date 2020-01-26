@@ -1,15 +1,31 @@
 #pragma once
 
 
-#include <memory>
+#include <cassert>
+
+#include <vulkan/vulkan.h>
 
 
 namespace ct
 {
     namespace vulkan
     {
+        template <typename T>
+        class Object
+        {
+        public:
+            const T& GetHandle() const
+            {
+                assert(handle != VK_NULL_HANDLE);
+                return handle;
+            }
+        protected:
+            T handle = VK_NULL_HANDLE;
+        };
+
+
         template <typename T, typename Delete>
-        class Scoped
+        class Scoped : public Object<T>
         {
         public:
             Scoped() : T(VK_NULL_HANDLE)
@@ -18,20 +34,15 @@ namespace ct
 
             template <typename D>
             Scoped(const T handle, D&& delete_func) :
-                handle(handle),
                 delete_func(std::forward<D>(delete_func))
             {
+                Object<T>::handle = handle;
             }
 
             Scoped(const Scoped& other) = delete;
             Scoped& operator=(const Scoped& other) = delete;
             Scoped(Scoped&& other) = default;
             Scoped& operator=(Scoped&& other) = default;
-
-            T GetHandle()
-            {
-                return handle;
-            }
 
             void Release()
             {
@@ -46,10 +57,10 @@ namespace ct
                 }
             }
 
-        private:
-            T       handle;
+        protected:
             Delete  delete_func;
         };
+
 
         template <typename T, typename Delete>
         auto MakeScoped(const T handle, Delete&& delete_func)
