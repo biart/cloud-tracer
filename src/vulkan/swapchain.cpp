@@ -4,6 +4,7 @@
 
 #include <vulkan/device.h>
 #include <vulkan/exception.h>
+#include <vulkan/semaphore.h>
 
 
 namespace ct
@@ -68,7 +69,7 @@ Swapchain::Swapchain(const Device& device, const std::uint32_t width, const std:
     create_info.imageColorSpace = surface_format.colorSpace;
     create_info.imageExtent = swapchain_extent;
     create_info.imageArrayLayers = 1;
-    create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
     std::vector<std::uint32_t> unique_queue_family_indices; unique_queue_family_indices.reserve(AllQueueTypes().size());
     for (auto queue_type : AllQueueTypes())
@@ -94,14 +95,14 @@ Swapchain::Swapchain(const Device& device, const std::uint32_t width, const std:
     create_info.clipped = VK_TRUE;
     create_info.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(device.GetHandle(), &create_info, nullptr, &vk_swapchain) != VK_SUCCESS)
+    if (vkCreateSwapchainKHR(device.GetHandle(), &create_info, nullptr, &handle) != VK_SUCCESS)
     {
         throw Exception("Failed to create swapchain");
     }
 
-    vkGetSwapchainImagesKHR(device.GetHandle(), vk_swapchain, &image_count, nullptr);
+    vkGetSwapchainImagesKHR(device.GetHandle(), handle, &image_count, nullptr);
     swapchain_images.resize(image_count);
-    vkGetSwapchainImagesKHR(device.GetHandle(), vk_swapchain, &image_count, swapchain_images.data());
+    vkGetSwapchainImagesKHR(device.GetHandle(), handle, &image_count, swapchain_images.data());
 }
 
 const std::vector<VkImage>& Swapchain::GetImages() const
@@ -124,9 +125,22 @@ VkExtent2D Swapchain::GetExtent() const
     return swapchain_extent;
 }
 
+std::uint32_t Swapchain::AcquireNextImageIndex(const Semaphore& semaphore)
+{
+    std::uint32_t image_index = ~0u;
+    const VkResult status = vkAcquireNextImageKHR(
+        device.GetHandle(),
+        handle,
+        std::numeric_limits<std::uint64_t>::max(),
+        semaphore.GetHandle(),
+        VK_NULL_HANDLE,
+        &image_index);
+    return image_index;
+}
+
 Swapchain::~Swapchain()
 {
-    vkDestroySwapchainKHR(device.GetHandle(), vk_swapchain, nullptr);
+    vkDestroySwapchainKHR(device.GetHandle(), handle, nullptr);
 }
 
 }

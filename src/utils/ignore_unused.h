@@ -5,7 +5,7 @@ namespace ct
 {
     namespace utils
     {
-        void IgnoreUnused();
+        inline void IgnoreUnused();
 
         template <typename Car, typename ...Cdr>
         void IgnoreUnused(Car& first_unused_variable, const Cdr& ... rest_unused_variables);

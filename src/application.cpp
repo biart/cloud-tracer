@@ -4,92 +4,88 @@
 #include <utils/ignore_unused.h>
 #include <vulkan/command_pool.h>
 #include <vulkan/memory.h>
+#include <vulkan/semaphore.h>
 
 
 namespace ct
 {
 
-Application::Application(const std::string& name, const bool debug) :
-    name(name), debug(debug)
+Application::Application(const ct::vulkan::Instance& vk_instance, const std::string& name) :
+    name(name),
+    vk_instance(vk_instance),
+    window(name, DefaultWidth, DefaultHeight),
+    surface(vk_instance, window),
+    vk_device(
+        vk_instance,
+        vk_instance.GetPhysicalDevices()[0],
+        ct::vulkan::PresentQueue | ct::vulkan::ComputeQueue | ct::vulkan::GraphicsQueue,
+        surface.GetHandler()),
+    frame_number(0u),
+    is_running(false)
 {
 }
 
 
 void Application::Run()
 {
-    if (IsRunning())
+    if (is_running)
         return;
+    is_running = true;
 
-    glfwInit();
-    window.reset(new Window(name, DefaultWidth, DefaultHeight));
-    std::uint32_t glfw_ext_count;
-    const char** glfw_ext = glfwGetRequiredInstanceExtensions(&glfw_ext_count);
-    vk_instance.reset(new vulkan::Instance(name, "", std::vector<const char*>(glfw_ext, glfw_ext + glfw_ext_count), debug));
-    vk_debug_messenger.reset(debug ? new vulkan::DebugMessenger(*vk_instance, DebugCallback) : nullptr);
-    surface.reset(new Window::Surface(*vk_instance, *window));
-    vk_device.reset(new vulkan::Device(
-        *vk_instance,
-        vk_instance->GetPhysicalDevices()[0],
-        ct::vulkan::PresentQueue | ct::vulkan::ComputeQueue | ct::vulkan::GraphicsQueue,
-        surface->GetHandler()));
-    vk_swapchain.reset(new vulkan::Swapchain(*vk_device, DefaultWidth, DefaultHeight));
+    vulkan::Swapchain vk_swapchain(vk_device, DefaultWidth, DefaultHeight);
+    vulkan::Semaphore vk_semaphores[2] = {
+        vulkan::Semaphore(vk_device),
+        vulkan::Semaphore(vk_device)
+    };
 
+    ct::vulkan::CommandPool command_pool(vk_device, ct::vulkan::ComputeQueue);
+
+    std::vector<ct::vulkan::CommandBuffer> blit_command_buffers;
+    const std::size_t images_count = vk_swapchain.GetImages().size();
+    blit_command_buffers.reserve(images_count);
+    for (size_t i = 0; i != images_count; ++i)
     {
-        ct::vulkan::Buffer<float, ct::vulkan::DeviceMemory, true, false> stagingBuffer(*vk_device, 1024);
-        ct::vulkan::Buffer<float, ct::vulkan::DeviceMemory, false, true> buffer(*vk_device, 1024);
-
-        ct::vulkan::CommandPool command_pool(*vk_device, ct::vulkan::ComputeQueue);
-
-        // Command buffer: copy from host to device
-        ct::vulkan::CommandBuffer copy_command_buffer(command_pool);
-        {
-            ct::vulkan::CommandRecorder recorder(copy_command_buffer);
-            recorder.Transfer(stagingBuffer, buffer);
-        }
-
-        Start();
-        while (!window->ShouldClose())
-        {
-            Update();
-            ct::vulkan::SubmitCommands(copy_command_buffer);
-            command_pool.WaitForQueue();
-            glfwPollEvents();
-        }
-        Destroy();
+        ct::vulkan::CommandBuffer command_buffer(command_pool);
+        ct::vulkan::CommandRecorder recorder(command_buffer);
+        /*
+        recorder.Blit(
+            staging_buffer, vk_swapchain->GetImages()[i],
+            vk_swapchain->GetExtent().width, vk_swapchain->GetExtent().height);
+        blit_command_buffers.push_back(std::move(command_buffer));
+        */
     }
 
-    vk_swapchain.release();
-    vk_device.release();
-    surface.release();
-    vk_debug_messenger.release();
-    vk_instance.release();
-    window.release();
-}
+    Start();
+    while (!window.ShouldClose())
+    {
+        glfwPollEvents();
+        Update();
 
+        const std::uint32_t swapchain_image_index = vk_swapchain.AcquireNextImageIndex(vk_semaphores[frame_number % 2u]);
 
-bool Application::IsRunning()
-{
-    return window != nullptr;
+        VkPresentInfoKHR present_info = {};
+        present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        present_info.waitSemaphoreCount = 1;
+        present_info.pWaitSemaphores = &vk_semaphores[(frame_number + 1u) % 2u].GetHandle();
+        present_info.swapchainCount = 1;
+        present_info.pSwapchains = &vk_swapchain.GetHandle();
+        present_info.pImageIndices = &swapchain_image_index;
+        if (vkQueuePresentKHR(vk_device.GetQueue(vulkan::PresentQueue), &present_info) != VK_SUCCESS)
+        {
+            throw vulkan::Exception("Unable to present");
+        }
+
+        ++frame_number;
+    }
+    Destroy();
+    is_running = false;
+    frame_number = 0u;
 }
 
 
 const std::string& Application::GetName() const
 {
     return name;
-}
-
-
-VKAPI_ATTR VkBool32 VKAPI_CALL Application::DebugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT          message_severity,
-    VkDebugUtilsMessageTypeFlagsEXT                 message_type,
-    const VkDebugUtilsMessengerCallbackDataEXT*     callback_data,
-    void*                                           user_data)
-{
-    utils::IgnoreUnused(message_severity, message_type, user_data);
-
-    std::cout << "Vulkan validation layer: " << callback_data->pMessage << std::endl;
-
-    return VK_FALSE;
 }
 
 }

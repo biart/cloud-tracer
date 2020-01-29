@@ -18,10 +18,9 @@ namespace ct
 class Application
 {
 public:
-    Application(const std::string& name, const bool debug = true);
+    Application(const ct::vulkan::Instance& vk_instance, const std::string& name);
 
     void Run();
-    bool IsRunning();
     const std::string& GetName() const;
 
     enum
@@ -36,20 +35,16 @@ protected:
     virtual void Destroy() = 0;
 
 private:
-    static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT          message_severity,
-        VkDebugUtilsMessageTypeFlagsEXT                 message_type,
-        const VkDebugUtilsMessengerCallbackDataEXT*     callback_data,
-        void*                                           user_data);
+    const std::string           name;
 
-    const std::string                           name;
-    const bool                                  debug;
-    std::unique_ptr<vulkan::Instance>           vk_instance;
-    std::unique_ptr<vulkan::DebugMessenger>     vk_debug_messenger;
-    std::unique_ptr<vulkan::Device>             vk_device;
-    std::unique_ptr<vulkan::Swapchain>          vk_swapchain;
-    std::unique_ptr<Window>                     window;
-    std::unique_ptr<Window::Surface>            surface;
+    const vulkan::Instance&     vk_instance;
+
+    const Window                window;
+    const Window::Surface       surface;
+    const vulkan::Device        vk_device;
+
+    std::size_t     frame_number;
+    bool            is_running;
 };
 
 }

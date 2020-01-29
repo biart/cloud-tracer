@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <vector>
 
-#include <vulkan/vulkan.h>
+#include <vulkan/object.h>
 
 
 namespace
@@ -29,23 +29,24 @@ namespace ct
     namespace vulkan
     {
         class Device;
+        class Semaphore;
 
 
-        class Swapchain
+        class Swapchain : public Object<VkSwapchainKHR>
         {
         public:
-            Swapchain(const Device& device, const std::uint32_t width, const std::uint32_t height);
+            explicit Swapchain(const Device& device, const std::uint32_t width, const std::uint32_t height);
 
             const std::vector<VkImage>& GetImages() const;
             VkSurfaceFormatKHR GetSurfaceFormat() const;
             VkPresentModeKHR GetPresentMode() const;
             VkExtent2D GetExtent() const;
+            std::uint32_t AcquireNextImageIndex(const Semaphore& semaphore);
 
             ~Swapchain();
 
         private:
             const Device&           device;
-            VkSwapchainKHR          vk_swapchain;
             std::vector<VkImage>    swapchain_images;
             VkSurfaceFormatKHR      surface_format;
             VkPresentModeKHR        present_mode;

@@ -45,6 +45,7 @@ set(cloud_tracer_sources_vulkan
     src/vulkan/debug_messenger.cpp
     src/vulkan/instance.cpp
     src/vulkan/memory.cpp
+    src/vulkan/semaphore.cpp
     src/vulkan/swapchain.cpp)
 set(cloud_tracer_sources_utils)
 set(cloud_tracer_headers_main
@@ -58,6 +59,7 @@ set(cloud_tracer_headers_vulkan
     src/vulkan/instance.h
     src/vulkan/memory.h
     src/vulkan/object.h
+    src/vulkan/semaphore.h
     src/vulkan/swapchain.h)
 set(cloud_tracer_headers_utils
     src/utils/ignore_unused.h)

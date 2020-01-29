@@ -28,7 +28,7 @@ namespace ct
         class Buffer
         {
         public:
-            Buffer(const Device& device, const std::size_t count);
+            explicit Buffer(const Device& device, const std::size_t count);
             ~Buffer();
 
             std::size_t GetCount() const;
