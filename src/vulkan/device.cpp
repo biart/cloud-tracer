@@ -246,6 +246,10 @@ const std::vector<VkPresentModeKHR>& Device::GetPresentModes() const
 
 Device::~Device()
 {
+    for (QueueType queue_type : AllQueueTypes())
+    {
+        if (Supports(queue_type)) vkQueueWaitIdle(GetQueue(queue_type));
+    }
     vkDestroyDevice(handle, nullptr);
 }
 
