@@ -24,14 +24,14 @@ namespace ct
             static constexpr const char* name = "device";
         };
 
-        template <typename T, typename MemoryType, bool Source = false, bool Destination = false>
+        template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
         class Buffer
         {
         public:
             explicit Buffer(const Device& device, const std::size_t count);
             ~Buffer();
-            Buffer(Buffer<T, MemoryType, Source, Destination>&& other);
-            Buffer(const Buffer<T, MemoryType, Source, Destination>& other) = delete;
+            Buffer(Buffer<T, MemoryType, UsageFlags>&& other);
+            Buffer(const Buffer<T, MemoryType, UsageFlags>& other) = delete;
 
             std::size_t GetCount() const;
             std::size_t GetAllocationSizeInBytes() const;
@@ -65,10 +65,13 @@ namespace ct
 
         // Shortcuts for some buffer types
         template <typename T>
-        using StagingBuffer = Buffer<T, HostMemory, true, false>;
+        using StagingBuffer = Buffer<T, HostMemory, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT>;
 
         template <typename T>
-        using DeviceBuffer = Buffer<T, DeviceMemory, false, true>;
+        using DeviceBuffer = Buffer<T, DeviceMemory, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT>;
+
+        template <typename T>
+        using UniformBuffer = Buffer<T, HostMemory, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT>;
 
 
         template <typename T>
@@ -101,8 +104,8 @@ namespace ct
 
 
 
-template <typename T, typename MemoryType, bool Source, bool Destination>
-ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+ct::vulkan::Buffer<T, MemoryType, UsageFlags>::Buffer(
     const ct::vulkan::Device&   device,
     const std::size_t           count) :
     device(device),
@@ -111,9 +114,7 @@ ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(
     VkBufferCreateInfo buffer_create_info = {};
     buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buffer_create_info.size = count * sizeof(T);
-    buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    if (Source)         buffer_create_info.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    if (Destination)    buffer_create_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    buffer_create_info.usage = UsageFlags;
     buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateBuffer(device.GetHandle(), &buffer_create_info, nullptr, &vk_buffer) != VK_SUCCESS)
@@ -152,8 +153,8 @@ ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(
     vk_buffer_scoped.Release();
 }
 
-template <typename T, typename MemoryType, bool Source, bool Destination>
-inline ct::vulkan::Buffer<T, MemoryType, Source, Destination>::~Buffer()
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline ct::vulkan::Buffer<T, MemoryType, UsageFlags>::~Buffer()
 {
     if (vk_buffer != VK_NULL_HANDLE)
     {
@@ -162,9 +163,9 @@ inline ct::vulkan::Buffer<T, MemoryType, Source, Destination>::~Buffer()
     }
 }
 
-template<typename T, typename MemoryType, bool Source, bool Destination>
-inline ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(
-    Buffer<T, MemoryType, Source, Destination>&& other) :
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline ct::vulkan::Buffer<T, MemoryType, UsageFlags>::Buffer(
+    Buffer<T, MemoryType, UsageFlags>&& other) :
     device(other.device),
     count(other.count),
     allocation_size(other.allocation_size),
@@ -173,44 +174,44 @@ inline ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(
     swap(vk_buffer, other.vk_buffer);
 }
 
-template <typename T, typename MemoryType, bool Source, bool Destination>
-inline std::size_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetCount() const
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline std::size_t ct::vulkan::Buffer<T, MemoryType, UsageFlags>::GetCount() const
 {
     return count;
 }
 
-template <typename T, typename MemoryType, bool Source, bool Destination>
-inline std::size_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetAllocationSizeInBytes() const
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline std::size_t ct::vulkan::Buffer<T, MemoryType, UsageFlags>::GetAllocationSizeInBytes() const
 {
     return allocation_size;
 }
 
-template <typename T, typename MemoryType, bool Source, bool Destination>
-inline std::size_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetSizeInBytes() const
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline std::size_t ct::vulkan::Buffer<T, MemoryType, UsageFlags>::GetSizeInBytes() const
 {
     return count * sizeof(T);
 }
 
-template <typename T, typename MemoryType, bool Source, bool Destination>
-inline VkBuffer ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetBufferHandle() const
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline VkBuffer ct::vulkan::Buffer<T, MemoryType, UsageFlags>::GetBufferHandle() const
 {
     return vk_buffer;
 }
 
-template <typename T, typename MemoryType, bool Source, bool Destination>
-inline VkDeviceMemory ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetMemoryHandle() const
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline VkDeviceMemory ct::vulkan::Buffer<T, MemoryType, UsageFlags>::GetMemoryHandle() const
 {
     return vk_memory;
 }
 
-template<typename T, typename MemoryType, bool Source, bool Destination>
-inline const ct::vulkan::Device& ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetDevice() const
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline const ct::vulkan::Device& ct::vulkan::Buffer<T, MemoryType, UsageFlags>::GetDevice() const
 {
     return device;
 }
 
-template <typename T, typename MemoryType, bool Source, bool Destination>
-inline std::uint32_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::FindSuitableMemoryTypeIndex(
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline std::uint32_t ct::vulkan::Buffer<T, MemoryType, UsageFlags>::FindSuitableMemoryTypeIndex(
     const VkPhysicalDeviceMemoryProperties& physical_device_memory_properties,
     const VkMemoryRequirements&             memory_requirements,
     const VkMemoryPropertyFlags             requested_memory_properties)
@@ -228,16 +229,16 @@ inline std::uint32_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Fin
     throw Exception("Cannot find a memory type with requested properties");
 }
 
-template <typename T, typename MemoryType, bool Source, bool Destination>
-inline bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::IsMemorySupportedByDevice(
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline bool ct::vulkan::Buffer<T, MemoryType, UsageFlags>::IsMemorySupportedByDevice(
     const std::uint32_t             memory_type_index,
     const VkMemoryRequirements&     memory_requirements)
 {
     return (memory_requirements.memoryTypeBits & (1 << memory_type_index)) != 0;
 }
 
-template <typename T, typename MemoryType, bool Source, bool Destination>
-inline bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::DoesMemoryHaveProperties(
+template <typename T, typename MemoryType, VkBufferUsageFlags UsageFlags>
+inline bool ct::vulkan::Buffer<T, MemoryType, UsageFlags>::DoesMemoryHaveProperties(
     const VkMemoryType&             memory_type,
     const VkMemoryPropertyFlags     requested_memory_properties)
 {

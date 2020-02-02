@@ -100,8 +100,10 @@ namespace ct
             template <typename Buffer>
             void Fill(Buffer& buffer, const uint32_t data);
 
-            template <typename T, typename SrcMemoryType, typename DstMemoryType, bool Dst0, bool Src1>
-            void Transfer(const Buffer<T, SrcMemoryType, true, Dst0>& from, Buffer<T, DstMemoryType, Src1, true>& to);
+            template <typename T,
+                typename SrcMemoryType, VkBufferUsageFlags SrcUsageFlags,
+                typename DstMemoryType, VkBufferUsageFlags DstUsageFlags>
+            void Transfer(const Buffer<T, SrcMemoryType, SrcUsageFlags>& from, Buffer<T, DstMemoryType, DstUsageFlags>& to);
 
             VkAccessFlags FindSuitableAccessMask(const ImageLayout layout)
             {
@@ -150,37 +152,12 @@ namespace ct
                     &image_memory_barrier);
             }
 
-            template <typename T, typename SrcMemoryType, bool Dst>
-            void Blit(const Buffer<T, SrcMemoryType, true, Dst>& buffer, const VkImage image, const uint32_t width, const uint32_t height)
-            {
-                ImageMemoryBarrier(
-                    image,
-                    ImageLayout::PresentSource, TopOfPipeStage,
-                    ImageLayout::TransferDestination, TransferStage);
-
-                VkBufferImageCopy buffer_image_copy = {};
-                buffer_image_copy.bufferRowLength = width; // TODO: multiply by size?
-                buffer_image_copy.bufferImageHeight = height;
-                buffer_image_copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                buffer_image_copy.imageSubresource.layerCount = 1u;
-                buffer_image_copy.imageExtent.width = width;
-                buffer_image_copy.imageExtent.height = height;
-                buffer_image_copy.imageExtent.depth = 1u;
-
-                vkCmdCopyBufferToImage(
-                    command_buffer.GetHandle(),
-                    buffer.GetBufferHandle(),
-                    image,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    1u,
-                    &buffer_image_copy);
-
-                ImageMemoryBarrier(
-                    image,
-                    ImageLayout::TransferDestination, TransferStage,
-                    ImageLayout::PresentSource, BottomOfPipeStage);
-            }
-
+            template <typename T, typename SrcMemoryType, VkBufferUsageFlags SrcUsageFlags>
+            void Blit(
+                const Buffer<T, SrcMemoryType, SrcUsageFlags>& buffer,
+                const VkImage                                   image,
+                const uint32_t                                  width,
+                const uint32_t                                  height);
 
 
         private:
@@ -212,13 +189,59 @@ void ct::vulkan::CommandRecorder::Fill(Buffer& buffer, const uint32_t data)
     vkCmdFillBuffer(command_buffer.GetHandle(), buffer.GetHandle(), 0, buffer.GetSizeInBytes(), data);
 }
 
-template <typename T, typename SrcMemoryType, typename DstMemoryType, bool Dst0, bool Src1>
-void ct::vulkan::CommandRecorder::Transfer(const Buffer<T, SrcMemoryType, true, Dst0>& from, Buffer<T, DstMemoryType, Src1, true>& to)
+template <typename T,
+    typename SrcMemoryType, VkBufferUsageFlags SrcUsageFlags,
+    typename DstMemoryType, VkBufferUsageFlags DstUsageFlags>
+void ct::vulkan::CommandRecorder::Transfer(
+    const Buffer<T, SrcMemoryType, SrcUsageFlags>&  from,
+    Buffer<T, DstMemoryType, DstUsageFlags>&        to)
 {
+    static_assert((SrcUsageFlags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) != 0,
+        "Source buffer must have VK_BUFFER_USAGE_TRANSFER_SRC_BIT flag set");
+    static_assert((DstUsageFlags & VK_BUFFER_USAGE_TRANSFER_DST_BIT) != 0,
+        "Destination buffer must have VK_BUFFER_USAGE_TRANSFER_DST_BIT flag set");
     VkBufferCopy copy_region;
     copy_region.srcOffset = 0u;
     copy_region.dstOffset = 0u;
     copy_region.size = from.GetSizeInBytes();
     assert(copy_region.size == to.GetSizeInBytes());
     vkCmdCopyBuffer(command_buffer.GetHandle(), from.GetBufferHandle(), to.GetBufferHandle(), 1u, &copy_region);
+}
+
+template <typename T, typename SrcMemoryType, VkBufferUsageFlags SrcUsageFlags>
+void ct::vulkan::CommandRecorder::Blit(
+    const Buffer<T, SrcMemoryType, SrcUsageFlags>&  buffer,
+    const VkImage                                   image,
+    const uint32_t                                  width,
+    const uint32_t                                  height)
+{
+    static_assert((SrcUsageFlags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) != 0,
+        "Source buffer must have VK_BUFFER_USAGE_TRANSFER_SRC_BIT flag set");
+
+    ImageMemoryBarrier(
+        image,
+        ImageLayout::PresentSource, TopOfPipeStage,
+        ImageLayout::TransferDestination, TransferStage);
+
+    VkBufferImageCopy buffer_image_copy = {};
+    buffer_image_copy.bufferRowLength = width; // TODO: multiply by size?
+    buffer_image_copy.bufferImageHeight = height;
+    buffer_image_copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    buffer_image_copy.imageSubresource.layerCount = 1u;
+    buffer_image_copy.imageExtent.width = width;
+    buffer_image_copy.imageExtent.height = height;
+    buffer_image_copy.imageExtent.depth = 1u;
+
+    vkCmdCopyBufferToImage(
+        command_buffer.GetHandle(),
+        buffer.GetBufferHandle(),
+        image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1u,
+        &buffer_image_copy);
+
+    ImageMemoryBarrier(
+        image,
+        ImageLayout::TransferDestination, TransferStage,
+        ImageLayout::PresentSource, BottomOfPipeStage);
 }
