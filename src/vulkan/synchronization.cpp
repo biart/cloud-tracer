@@ -1,7 +1,7 @@
 #pragma once
 
 
-#include "semaphore.h"
+#include "synchronization.h"
 
 
 #include <vulkan/device.h>
@@ -21,6 +21,12 @@ Semaphore::Semaphore(const Device& device) : device(device)
     {
         throw Exception("Failed to create semaphore");
     }
+}
+
+Semaphore::Semaphore(Semaphore&& other) :
+    Object<VkSemaphore>(std::move(other)),
+    device(other.device)
+{
 }
 
 Semaphore::~Semaphore()

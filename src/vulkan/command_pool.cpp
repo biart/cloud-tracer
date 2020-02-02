@@ -3,6 +3,7 @@
 
 #include <vulkan/device.h>
 #include <vulkan/exception.h>
+#include <vulkan/synchronization.h>
 
 
 namespace ct
@@ -75,7 +76,21 @@ CommandBuffer::CommandBuffer(const CommandPool& command_pool) :
 
 CommandBuffer::~CommandBuffer()
 {
-    vkFreeCommandBuffers(command_pool.GetDevice().GetHandle(), command_pool.GetHandle(), 1u, &handle);
+    if (handle != VK_NULL_HANDLE)
+    {
+        vkFreeCommandBuffers(
+            command_pool.GetDevice().GetHandle(),
+            command_pool.GetHandle(),
+            1u,
+            &handle);
+    }
+}
+
+CommandBuffer::CommandBuffer(CommandBuffer&& other) :
+    Object<VkCommandBuffer>(std::move(other)),
+    command_pool(other.command_pool),
+    status(other.status)
+{
 }
 
 const CommandPool& CommandBuffer::GetPool() const
@@ -141,23 +156,49 @@ CommandRecorder::~CommandRecorder()
 }
         
 
-
-void SubmitCommands(const CommandBuffer& command_buffer)
-{   
-    VkSubmitInfo submit_info;
+void DoSubmitCommands(
+    VkSubmitInfo&           submit_info,
+    const CommandBuffer&    command_buffer,
+    const Semaphore*        signal_semaphore_ptr)
+{
+    if (command_buffer.GetStatus() != CommandBuffer::Executable)
+    {
+        throw Exception("Failed to submit command buffers for execution: they are not in an executable state");
+    }
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.pNext = nullptr;
     submit_info.commandBufferCount = 1u;
     submit_info.pCommandBuffers = &(command_buffer.GetHandle());
-    submit_info.pSignalSemaphores = nullptr;
-    submit_info.pWaitSemaphores = nullptr;
-    submit_info.pWaitDstStageMask = nullptr;
-    submit_info.signalSemaphoreCount = 0u;
-    submit_info.waitSemaphoreCount = 0u;
-    if (vkQueueSubmit(command_buffer.GetPool().GetQueue(), 1u, &submit_info, nullptr) != VK_SUCCESS)
+    submit_info.pSignalSemaphores = (signal_semaphore_ptr == nullptr) ? nullptr : &signal_semaphore_ptr->GetHandle();
+    submit_info.signalSemaphoreCount = (signal_semaphore_ptr == nullptr) ? 0u : 1u;
+    VkQueue queue = command_buffer.GetPool().GetQueue();
+    if (vkQueueSubmit(queue, 1u, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS)
     {
-        throw Exception("Failed to submit queue");
+        throw Exception("Failed to submit command buffers for execution");
     }
+}
+
+
+void SubmitCommands(
+    const CommandBuffer&    command_buffer,
+    const Semaphore*        signal_semaphore_ptr)
+{
+    VkSubmitInfo submit_info = {};
+    DoSubmitCommands(submit_info, command_buffer, signal_semaphore_ptr);
+}
+
+
+void SubmitCommands(
+    const CommandBuffer&    command_buffer,
+    const PipelineStageMask wait_stage_mask,
+    const Semaphore&        wait_semaphore,
+    const Semaphore*        signal_semaphore_ptr)
+{
+    VkSubmitInfo submit_info = {};
+    submit_info.pWaitDstStageMask = &wait_stage_mask;
+    submit_info.pWaitSemaphores = &wait_semaphore.GetHandle();
+    submit_info.waitSemaphoreCount = 1u;
+    DoSubmitCommands(submit_info, command_buffer, signal_semaphore_ptr);
 }
 
 }

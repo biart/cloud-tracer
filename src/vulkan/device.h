@@ -32,15 +32,16 @@ using QueueFlags = std::uint32_t;
 class Device : public Object<VkDevice>
 {
 public:
-    Device(
+    explicit Device(
         const Instance&             vk_instance,
         const VkPhysicalDevice      physical_device,
         QueueFlags                  requested_queue_flags,
         const VkSurfaceKHR          surface = VK_NULL_HANDLE);
+    Device(Device&& other);
 
     enum : std::uint32_t
     {
-        InvalidQueueFamilyIndex = ~0u
+        InvalidQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED
     };
 
     VkPhysicalDevice GetPhysicalDevice() const;
@@ -65,12 +66,16 @@ private:
     mutable std::vector<VkSurfaceFormatKHR>     surface_formats;
     VkSurfaceCapabilitiesKHR                    surface_capabilities;
 
-    VkQueue graphics_queue = VK_NULL_HANDLE;
-    std::uint32_t graphics_queue_family_index = InvalidQueueFamilyIndex;
-    VkQueue present_queue = VK_NULL_HANDLE;
-    std::uint32_t present_queue_family_index = InvalidQueueFamilyIndex;
-    VkQueue compute_queue = VK_NULL_HANDLE;
-    std::uint32_t compute_queue_family_index = InvalidQueueFamilyIndex;
+    struct QueuesInfo
+    {
+        VkQueue graphics_queue = VK_NULL_HANDLE;
+        std::uint32_t graphics_queue_family_index = InvalidQueueFamilyIndex;
+        VkQueue present_queue = VK_NULL_HANDLE;
+        std::uint32_t present_queue_family_index = InvalidQueueFamilyIndex;
+        VkQueue compute_queue = VK_NULL_HANDLE;
+        std::uint32_t compute_queue_family_index = InvalidQueueFamilyIndex;
+    };
+    QueuesInfo queues_info;
 
     const std::array<const char*, 1> present_mode_extensions =
     {

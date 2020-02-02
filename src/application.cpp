@@ -4,7 +4,7 @@
 #include <utils/ignore_unused.h>
 #include <vulkan/command_pool.h>
 #include <vulkan/memory.h>
-#include <vulkan/semaphore.h>
+#include <vulkan/synchronization.h>
 
 
 namespace ct
@@ -33,26 +33,50 @@ void Application::Run()
     is_running = true;
 
     vulkan::Swapchain vk_swapchain(vk_device, DefaultWidth, DefaultHeight);
+
     vulkan::Semaphore vk_semaphores[2] = {
         vulkan::Semaphore(vk_device),
         vulkan::Semaphore(vk_device)
     };
+    std::uint32_t next_semaphore_index = 0u;
 
-    ct::vulkan::CommandPool command_pool(vk_device, ct::vulkan::ComputeQueue);
+    ct::vulkan::CommandPool command_pool(vk_device, ct::vulkan::GraphicsQueue);
+
+    ct::vulkan::StagingBuffer<std::uint8_t> staging_buffer(vk_device, DefaultWidth * DefaultHeight * 4);
+    {
+        auto memory_map = ct::vulkan::MapMemory(staging_buffer);
+        for (size_t i = 0; i < memory_map.GetCount(); i += 4)
+        {
+            memory_map[i] = 0xFF;
+        }
+    }
 
     std::vector<ct::vulkan::CommandBuffer> blit_command_buffers;
     const std::size_t images_count = vk_swapchain.GetImages().size();
     blit_command_buffers.reserve(images_count);
     for (size_t i = 0; i != images_count; ++i)
     {
-        ct::vulkan::CommandBuffer command_buffer(command_pool);
-        ct::vulkan::CommandRecorder recorder(command_buffer);
-        /*
-        recorder.Blit(
-            staging_buffer, vk_swapchain->GetImages()[i],
-            vk_swapchain->GetExtent().width, vk_swapchain->GetExtent().height);
-        blit_command_buffers.push_back(std::move(command_buffer));
-        */
+        ct::vulkan::CommandBuffer initialize_image_layout_command_buffer(command_pool);
+        {
+            ct::vulkan::CommandRecorder recorder(initialize_image_layout_command_buffer);
+            recorder.ImageMemoryBarrier(
+                vk_swapchain.GetImages()[i],
+                ct::vulkan::ImageLayout::Undefined, ct::vulkan::TopOfPipeStage,
+                ct::vulkan::ImageLayout::PresentSource, ct::vulkan::BottomOfPipeStage);
+        }
+
+        ct::vulkan::SubmitCommands(initialize_image_layout_command_buffer);
+        command_pool.WaitForQueue();
+
+        ct::vulkan::CommandBuffer blit_command_buffer(command_pool);
+        {
+            ct::vulkan::CommandRecorder recorder(blit_command_buffer);
+            recorder.Blit(
+                staging_buffer,
+                vk_swapchain.GetImages()[i],
+                DefaultWidth, DefaultHeight);
+        }
+        blit_command_buffers.push_back(std::move(blit_command_buffer));
     }
 
     Start();
@@ -61,18 +85,40 @@ void Application::Run()
         glfwPollEvents();
         Update();
 
-        const std::uint32_t swapchain_image_index = vk_swapchain.AcquireNextImageIndex(vk_semaphores[frame_number % 2u]);
-
-        VkPresentInfoKHR present_info = {};
-        present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        present_info.waitSemaphoreCount = 1;
-        present_info.pWaitSemaphores = &vk_semaphores[(frame_number + 1u) % 2u].GetHandle();
-        present_info.swapchainCount = 1;
-        present_info.pSwapchains = &vk_swapchain.GetHandle();
-        present_info.pImageIndices = &swapchain_image_index;
-        if (vkQueuePresentKHR(vk_device.GetQueue(vulkan::PresentQueue), &present_info) != VK_SUCCESS)
+        // Acquire next swapchain image index.
+        std::uint32_t swapchain_image_index;
         {
-            throw vulkan::Exception("Unable to present");
+            auto& signal_semaphore = vk_semaphores[next_semaphore_index];
+            swapchain_image_index = vk_swapchain.AcquireNextImageIndex(signal_semaphore);
+        }
+
+        // Blit host buffer into the swapchain image.
+        if (true) {
+            auto& wait_semaphore = vk_semaphores[next_semaphore_index];
+            next_semaphore_index = (next_semaphore_index + 1) % 2;
+            auto& signal_semaphore = vk_semaphores[next_semaphore_index];
+            vulkan::SubmitCommands(
+                blit_command_buffers[swapchain_image_index],
+                vulkan::ColorAttachmentOutputStage,
+                wait_semaphore,
+                &signal_semaphore);
+        }
+
+        // Present.
+        {
+            auto& wait_semaphore = vk_semaphores[next_semaphore_index];
+            next_semaphore_index = (next_semaphore_index + 1) % 2;
+            VkPresentInfoKHR present_info = {};
+            present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+            present_info.waitSemaphoreCount = 1;
+            present_info.pWaitSemaphores = &wait_semaphore.GetHandle();
+            present_info.swapchainCount = 1;
+            present_info.pSwapchains = &vk_swapchain.GetHandle();
+            present_info.pImageIndices = &swapchain_image_index;
+            if (vkQueuePresentKHR(vk_device.GetQueue(vulkan::PresentQueue), &present_info) != VK_SUCCESS)
+            {
+                throw vulkan::Exception("Failed to present the frame");
+            }
         }
 
         ++frame_number;

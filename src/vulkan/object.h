@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <algorithm>
 #include <cassert>
 
 #include <vulkan/vulkan.h>
@@ -14,6 +15,21 @@ namespace ct
         class Object
         {
         public:
+            Object() = default;
+            Object(const Object<T>&) = delete;
+            const Object& operator=(const Object&) = delete;
+
+            Object(Object&& other)
+            {
+                std::swap(handle, other.handle);
+            }
+
+            const Object& operator=(Object&& other)
+            {
+                std::swap(handle, other.handle);
+                return *this;
+            }
+
             const T& GetHandle() const
             {
                 assert(handle != VK_NULL_HANDLE);

@@ -2,6 +2,7 @@
 
 
 #include <vulkan/object.h>
+#include <algorithm>
 
 
 namespace ct
@@ -15,6 +16,7 @@ namespace ct
         {
         public:
             explicit Semaphore(const Device& device);
+            Semaphore(Semaphore&& other);
             ~Semaphore();
         private:
             const Device& device;

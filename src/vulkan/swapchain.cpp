@@ -4,7 +4,7 @@
 
 #include <vulkan/device.h>
 #include <vulkan/exception.h>
-#include <vulkan/semaphore.h>
+#include <vulkan/synchronization.h>
 
 
 namespace ct
@@ -46,10 +46,10 @@ Swapchain::Swapchain(const Device& device, const std::uint32_t width, const std:
         VK_PRESENT_MODE_MAILBOX_KHR;
 
     // Compute supported swapchain image extents.
-    swapchain_extent = surface_capabilities.currentExtent;
-    if (swapchain_extent.width == std::numeric_limits<std::uint32_t>::max())
+    extent = surface_capabilities.currentExtent;
+    if (extent.width == std::numeric_limits<std::uint32_t>::max())
     {
-        swapchain_extent =
+        extent =
         {
             Clamp(width,  surface_capabilities.minImageExtent.width,  surface_capabilities.maxImageExtent.width),
             Clamp(height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height)
@@ -67,7 +67,7 @@ Swapchain::Swapchain(const Device& device, const std::uint32_t width, const std:
     create_info.minImageCount = image_count;
     create_info.imageFormat = surface_format.format;
     create_info.imageColorSpace = surface_format.colorSpace;
-    create_info.imageExtent = swapchain_extent;
+    create_info.imageExtent = extent;
     create_info.imageArrayLayers = 1;
     create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
@@ -101,13 +101,23 @@ Swapchain::Swapchain(const Device& device, const std::uint32_t width, const std:
     }
 
     vkGetSwapchainImagesKHR(device.GetHandle(), handle, &image_count, nullptr);
-    swapchain_images.resize(image_count);
-    vkGetSwapchainImagesKHR(device.GetHandle(), handle, &image_count, swapchain_images.data());
+    images.resize(image_count);
+    vkGetSwapchainImagesKHR(device.GetHandle(), handle, &image_count, images.data());
+}
+
+Swapchain::Swapchain(Swapchain&& other) :
+    Object<VkSwapchainKHR>(std::move(other)),
+    device(other.device),
+    images(std::move(other.images)),
+    surface_format(other.surface_format),
+    present_mode(other.present_mode),
+    extent(other.extent)
+{
 }
 
 const std::vector<VkImage>& Swapchain::GetImages() const
 {
-    return swapchain_images;
+    return images;
 }
 
 VkSurfaceFormatKHR Swapchain::GetSurfaceFormat() const
@@ -122,7 +132,7 @@ VkPresentModeKHR Swapchain::GetPresentMode() const
 
 VkExtent2D Swapchain::GetExtent() const
 {
-    return swapchain_extent;
+    return extent;
 }
 
 std::uint32_t Swapchain::AcquireNextImageIndex(const Semaphore& semaphore)
@@ -135,6 +145,11 @@ std::uint32_t Swapchain::AcquireNextImageIndex(const Semaphore& semaphore)
         semaphore.GetHandle(),
         VK_NULL_HANDLE,
         &image_index);
+    if (status != VK_SUCCESS)
+    {
+        throw Exception("Failed to acquire next image from the swapchain");
+    }
+    assert(image_index != ~0u);
     return image_index;
 }
 

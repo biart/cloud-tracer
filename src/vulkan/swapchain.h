@@ -36,6 +36,7 @@ namespace ct
         {
         public:
             explicit Swapchain(const Device& device, const std::uint32_t width, const std::uint32_t height);
+            Swapchain(Swapchain&& swapchain);
 
             const std::vector<VkImage>& GetImages() const;
             VkSurfaceFormatKHR GetSurfaceFormat() const;
@@ -47,10 +48,10 @@ namespace ct
 
         private:
             const Device&           device;
-            std::vector<VkImage>    swapchain_images;
+            std::vector<VkImage>    images;
             VkSurfaceFormatKHR      surface_format;
             VkPresentModeKHR        present_mode;
-            VkExtent2D              swapchain_extent;
+            VkExtent2D              extent;
         };
     }
 }

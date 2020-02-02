@@ -44,30 +44,37 @@ Device::Device(
         if (queue_family.queueCount > 0)
         {
             if (requested_queue_flags & queue_family.queueFlags & GraphicsQueue)
-                graphics_queue_family_index = current_queue_index;
+                queues_info.graphics_queue_family_index = current_queue_index;
             if (requested_queue_flags & queue_family.queueFlags & ComputeQueue)
-                compute_queue_family_index = current_queue_index;
+                queues_info.compute_queue_family_index = current_queue_index;
             if (surface != VK_NULL_HANDLE)
             {
                 VkBool32 present_support = false;
-                vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, current_queue_index, surface, &present_support);
-                if (present_support) present_queue_family_index = current_queue_index;
+                vkGetPhysicalDeviceSurfaceSupportKHR(
+                    physical_device,
+                    current_queue_index,
+                    surface,
+                    &present_support);
+                if (present_support)
+                {
+                    queues_info.present_queue_family_index = current_queue_index;
+                }
             }
         }
         ++current_queue_index;
     }
 
-    if (compute_queue_family_index == ~0u && (requested_queue_flags & ComputeQueue))
+    if (queues_info.compute_queue_family_index == ~0u && (requested_queue_flags & ComputeQueue))
         throw Exception("Compute queue was requested, but it is not supported by the device");
-    if (graphics_queue_family_index == ~0u && (requested_queue_flags & GraphicsQueue))
+    if (queues_info.graphics_queue_family_index == ~0u && (requested_queue_flags & GraphicsQueue))
         throw Exception("Graphics queue was requested, but it is not supported by the device");
-    if (present_queue_family_index == ~0u && surface != VK_NULL_HANDLE)
+    if (queues_info.present_queue_family_index == ~0u && surface != VK_NULL_HANDLE)
         throw Exception("Present queue was requested, but it is not supported by the device");
 
     std::unordered_set<std::uint32_t> queue_indices = {
-        compute_queue_family_index,
-        graphics_queue_family_index,
-        present_queue_family_index
+        queues_info.compute_queue_family_index,
+        queues_info.graphics_queue_family_index,
+        queues_info.present_queue_family_index
     };
     std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
     for (std::uint32_t queue_index : queue_indices)
@@ -89,7 +96,7 @@ Device::Device(
     create_info.queueCreateInfoCount = static_cast<std::uint32_t>(queue_create_infos.size());
     create_info.pQueueCreateInfos = queue_create_infos.data();
     create_info.pEnabledFeatures = &deviceFeatures;
-    if (present_queue_family_index != ~0u)
+    if (queues_info.present_queue_family_index != ~0u)
     {
         create_info.enabledExtensionCount = static_cast<std::uint32_t>(present_mode_extensions.size());
         create_info.ppEnabledExtensionNames = present_mode_extensions.data();
@@ -113,14 +120,29 @@ Device::Device(
         throw Exception("Failed to create logical device");
     }
 
-    if (graphics_queue_family_index != ~0u) vkGetDeviceQueue(handle, graphics_queue_family_index, 0, &graphics_queue);
-    if (present_queue_family_index != ~0u) vkGetDeviceQueue(handle, present_queue_family_index, 0, &present_queue);
-    if (compute_queue_family_index != ~0u) vkGetDeviceQueue(handle, compute_queue_family_index, 0, &compute_queue);
+    if (queues_info.graphics_queue_family_index != ~0u)
+        vkGetDeviceQueue(handle, queues_info.graphics_queue_family_index, 0, &queues_info.graphics_queue);
+    if (queues_info.present_queue_family_index != ~0u)
+        vkGetDeviceQueue(handle, queues_info.present_queue_family_index, 0, &queues_info.present_queue);
+    if (queues_info.compute_queue_family_index != ~0u)
+        vkGetDeviceQueue(handle, queues_info.compute_queue_family_index, 0, &queues_info.compute_queue);
 
-    if (present_queue_family_index != ~0u)
+    if (queues_info.present_queue_family_index != ~0u)
     {
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities);
     }
+}
+
+
+Device::Device(Device&& other) :
+    Object<VkDevice>(std::move(other)),
+    physical_device(other.physical_device),
+    surface(other.surface),
+    present_modes(other.present_modes),
+    surface_formats(std::move(other.surface_formats)),
+    surface_capabilities(other.surface_capabilities),
+    queues_info(other.queues_info)
+{
 }
 
 
@@ -141,11 +163,11 @@ bool Device::Supports(const QueueType type) const
     switch (type)
     {
     case GraphicsQueue:
-        return graphics_queue != VK_NULL_HANDLE;
+        return queues_info.graphics_queue != VK_NULL_HANDLE;
     case ComputeQueue:
-        return compute_queue != VK_NULL_HANDLE;
+        return queues_info.compute_queue != VK_NULL_HANDLE;
     case PresentQueue:
-        return present_queue != VK_NULL_HANDLE;
+        return queues_info.present_queue != VK_NULL_HANDLE;
     default:
         assert(false);
         return false;
@@ -159,11 +181,11 @@ VkQueue Device::GetQueue(const QueueType type) const
     switch (type)
     {
     case GraphicsQueue:
-        return graphics_queue;
+        return queues_info.graphics_queue;
     case ComputeQueue:
-        return compute_queue;
+        return queues_info.compute_queue;
     case PresentQueue:
-        return present_queue;
+        return queues_info.present_queue;
     default:
         assert(false);
         return VK_NULL_HANDLE;
@@ -177,11 +199,11 @@ std::uint32_t Device::GetQueueFamilyIndex(const QueueType type) const
     switch (type)
     {
     case GraphicsQueue:
-        return graphics_queue_family_index;
+        return queues_info.graphics_queue_family_index;
     case ComputeQueue:
-        return compute_queue_family_index;
+        return queues_info.compute_queue_family_index;
     case PresentQueue:
-        return present_queue_family_index;
+        return queues_info.present_queue_family_index;
     default:
         assert(false);
         return InvalidQueueFamilyIndex;
@@ -246,11 +268,14 @@ const std::vector<VkPresentModeKHR>& Device::GetPresentModes() const
 
 Device::~Device()
 {
-    for (QueueType queue_type : AllQueueTypes())
+    if (handle != VK_NULL_HANDLE)
     {
-        if (Supports(queue_type)) vkQueueWaitIdle(GetQueue(queue_type));
+        for (QueueType queue_type : AllQueueTypes())
+        {
+            if (Supports(queue_type)) vkQueueWaitIdle(GetQueue(queue_type));
+        }
+        vkDestroyDevice(handle, nullptr);
     }
-    vkDestroyDevice(handle, nullptr);
 }
 
 }

@@ -30,6 +30,8 @@ namespace ct
         public:
             explicit Buffer(const Device& device, const std::size_t count);
             ~Buffer();
+            Buffer(Buffer<T, MemoryType, Source, Destination>&& other);
+            Buffer(const Buffer<T, MemoryType, Source, Destination>& other) = delete;
 
             std::size_t GetCount() const;
             std::size_t GetAllocationSizeInBytes() const;
@@ -37,6 +39,7 @@ namespace ct
 
             VkBuffer GetBufferHandle() const;
             VkDeviceMemory GetMemoryHandle() const;
+            const Device& GetDevice() const;
 
         private:
             static std::uint32_t FindSuitableMemoryTypeIndex(
@@ -55,16 +58,53 @@ namespace ct
             const Device&       device;
             const std::size_t   count;
             std::size_t         allocation_size;
-            VkDeviceMemory      vk_memory;
-            VkBuffer            vk_buffer;
+            VkDeviceMemory      vk_memory = VK_NULL_HANDLE;
+            VkBuffer            vk_buffer = VK_NULL_HANDLE;
         };
+
+
+        // Shortcuts for some buffer types
+        template <typename T>
+        using StagingBuffer = Buffer<T, HostMemory, true, false>;
+
+        template <typename T>
+        using DeviceBuffer = Buffer<T, DeviceMemory, false, true>;
+
+
+        template <typename T>
+        class MemoryMap
+        {
+        public:
+            explicit MemoryMap(const StagingBuffer<T>& buffer);
+            MemoryMap(const MemoryMap<T>& other) = delete;
+            MemoryMap(MemoryMap<T>&& other);
+            ~MemoryMap();
+
+            T& operator[](const std::size_t index) const;
+            T* begin() const;
+            T* end() const;
+            std::size_t GetCount() const;
+
+        private:
+            const Device&           device;
+            const VkDeviceMemory    vk_memory;
+
+            mutable T*          data;
+            std::size_t         count;
+        };
+
+
+        template <typename T>
+        MemoryMap<T> MapMemory(const StagingBuffer<T>& buffer);
     }
 }
 
 
 
 template <typename T, typename MemoryType, bool Source, bool Destination>
-ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(const ct::vulkan::Device& device, const std::size_t count) :
+ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(
+    const ct::vulkan::Device&   device,
+    const std::size_t           count) :
     device(device),
     count(count)
 {
@@ -112,50 +152,67 @@ ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(const ct::vulkan:
     vk_buffer_scoped.Release();
 }
 
-
 template <typename T, typename MemoryType, bool Source, bool Destination>
-ct::vulkan::Buffer<T, MemoryType, Source, Destination>::~Buffer()
+inline ct::vulkan::Buffer<T, MemoryType, Source, Destination>::~Buffer()
 {
-    vkFreeMemory(device.GetHandle(), vk_memory, nullptr);
-    vkDestroyBuffer(device.GetHandle(), vk_buffer, nullptr);
+    if (vk_buffer != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(device.GetHandle(), vk_memory, nullptr);
+        vkDestroyBuffer(device.GetHandle(), vk_buffer, nullptr);
+    }
 }
 
+template<typename T, typename MemoryType, bool Source, bool Destination>
+inline ct::vulkan::Buffer<T, MemoryType, Source, Destination>::Buffer(
+    Buffer<T, MemoryType, Source, Destination>&& other) :
+    device(other.device),
+    count(other.count),
+    allocation_size(other.allocation_size),
+    vk_memory(other.vk_memory)
+{
+    swap(vk_buffer, other.vk_buffer);
+}
 
 template <typename T, typename MemoryType, bool Source, bool Destination>
-std::size_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetCount() const
+inline std::size_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetCount() const
 {
     return count;
 }
 
 template <typename T, typename MemoryType, bool Source, bool Destination>
-std::size_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetAllocationSizeInBytes() const
+inline std::size_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetAllocationSizeInBytes() const
 {
     return allocation_size;
 }
 
 template <typename T, typename MemoryType, bool Source, bool Destination>
-std::size_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetSizeInBytes() const
+inline std::size_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetSizeInBytes() const
 {
     return count * sizeof(T);
 }
 
-
 template <typename T, typename MemoryType, bool Source, bool Destination>
-VkBuffer ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetBufferHandle() const
+inline VkBuffer ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetBufferHandle() const
 {
     return vk_buffer;
 }
 
 template <typename T, typename MemoryType, bool Source, bool Destination>
-VkDeviceMemory ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetMemoryHandle() const
+inline VkDeviceMemory ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetMemoryHandle() const
 {
     return vk_memory;
 }
 
+template<typename T, typename MemoryType, bool Source, bool Destination>
+inline const ct::vulkan::Device& ct::vulkan::Buffer<T, MemoryType, Source, Destination>::GetDevice() const
+{
+    return device;
+}
+
 template <typename T, typename MemoryType, bool Source, bool Destination>
-std::uint32_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::FindSuitableMemoryTypeIndex(
+inline std::uint32_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::FindSuitableMemoryTypeIndex(
     const VkPhysicalDeviceMemoryProperties& physical_device_memory_properties,
-    const VkMemoryRequirements& memory_requirements,
+    const VkMemoryRequirements&             memory_requirements,
     const VkMemoryPropertyFlags             requested_memory_properties)
 {
     const std::uint32_t memory_type_count = physical_device_memory_properties.memoryTypeCount;
@@ -172,17 +229,77 @@ std::uint32_t ct::vulkan::Buffer<T, MemoryType, Source, Destination>::FindSuitab
 }
 
 template <typename T, typename MemoryType, bool Source, bool Destination>
-bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::IsMemorySupportedByDevice(
+inline bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::IsMemorySupportedByDevice(
     const std::uint32_t             memory_type_index,
-    const VkMemoryRequirements& memory_requirements)
+    const VkMemoryRequirements&     memory_requirements)
 {
     return (memory_requirements.memoryTypeBits & (1 << memory_type_index)) != 0;
 }
 
 template <typename T, typename MemoryType, bool Source, bool Destination>
-bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::DoesMemoryHaveProperties(
-    const VkMemoryType& memory_type,
+inline bool ct::vulkan::Buffer<T, MemoryType, Source, Destination>::DoesMemoryHaveProperties(
+    const VkMemoryType&             memory_type,
     const VkMemoryPropertyFlags     requested_memory_properties)
 {
     return (memory_type.propertyFlags & requested_memory_properties) == requested_memory_properties;
+}
+
+
+
+template <typename T>
+inline ct::vulkan::MemoryMap<T>::MemoryMap(const StagingBuffer<T>& buffer) :
+    device(buffer.GetDevice()),
+    vk_memory(buffer.GetMemoryHandle()),
+    count(buffer.GetCount())
+{
+    if (vkMapMemory(device.GetHandle(), vk_memory, 0u, count * sizeof(T), 0u, &static_cast<void*>(data)) != VK_SUCCESS)
+    {
+        throw Exception("Failed to map host buffer memory");
+    }
+}
+
+template<typename T>
+inline ct::vulkan::MemoryMap<T>::MemoryMap(MemoryMap<T>&& other) :
+    device(other.device),
+    vk_memory(other.vk_memory),
+    data(other.data),
+    count(other.count)
+{
+}
+
+template <typename T>
+inline ct::vulkan::MemoryMap<T>::~MemoryMap()
+{
+    vkUnmapMemory(device.GetHandle(), vk_memory);
+}
+
+template <typename T>
+inline T& ct::vulkan::MemoryMap<T>::operator[](const std::size_t index) const
+{
+    assert(index < count);
+    return data[index];
+}
+
+template <typename T>
+inline T* ct::vulkan::MemoryMap<T>::begin() const
+{
+    return data;
+}
+
+template <typename T>
+inline T* ct::vulkan::MemoryMap<T>::end() const
+{
+    return data + count;
+}
+
+template <typename T>
+inline std::size_t ct::vulkan::MemoryMap<T>::GetCount() const
+{
+    return count;
+}
+
+template <typename T>
+inline ct::vulkan::MemoryMap<T> ct::vulkan::MapMemory(const StagingBuffer<T>& buffer)
+{
+    return MemoryMap<T>(buffer);
 }
