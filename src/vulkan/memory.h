@@ -9,6 +9,9 @@ namespace ct
 {
     namespace vulkan
     {
+        class Fence;
+
+
         struct HostMemory
         {
             static constexpr VkMemoryPropertyFlags vk_memory_property_flags =
@@ -79,6 +82,7 @@ namespace ct
         {
         public:
             explicit MemoryMap(const StagingBuffer<T>& buffer);
+            explicit MemoryMap(const UniformBuffer<T>& buffer, const Fence& fence);
             MemoryMap(const MemoryMap<T>& other) = delete;
             MemoryMap(MemoryMap<T>&& other);
             ~MemoryMap();
@@ -89,6 +93,8 @@ namespace ct
             std::size_t GetCount() const;
 
         private:
+            void Initialize();
+
             const Device&           device;
             const VkDeviceMemory    vk_memory;
 
@@ -99,6 +105,10 @@ namespace ct
 
         template <typename T>
         MemoryMap<T> MapMemory(const StagingBuffer<T>& buffer);
+
+
+        template <typename T>
+        MemoryMap<T> MapMemory(const UniformBuffer<T>& buffer, const Fence& fence);
     }
 }
 
@@ -253,10 +263,17 @@ inline ct::vulkan::MemoryMap<T>::MemoryMap(const StagingBuffer<T>& buffer) :
     vk_memory(buffer.GetMemoryHandle()),
     count(buffer.GetCount())
 {
-    if (vkMapMemory(device.GetHandle(), vk_memory, 0u, count * sizeof(T), 0u, &static_cast<void*>(data)) != VK_SUCCESS)
-    {
-        throw Exception("Failed to map host buffer memory");
-    }
+    Initialize();
+}
+
+template<typename T>
+inline ct::vulkan::MemoryMap<T>::MemoryMap(const UniformBuffer<T>& buffer, const Fence& fence) :
+    device(buffer.GetDevice()),
+    vk_memory(buffer.GetMemoryHandle()),
+    count(buffer.GetCount())
+{
+    fence.Wait();
+    Initialize();
 }
 
 template<typename T>
@@ -299,8 +316,23 @@ inline std::size_t ct::vulkan::MemoryMap<T>::GetCount() const
     return count;
 }
 
+template<typename T>
+inline void ct::vulkan::MemoryMap<T>::Initialize()
+{
+    if (vkMapMemory(device.GetHandle(), vk_memory, 0u, count * sizeof(T), 0u, &static_cast<void*>(data)) != VK_SUCCESS)
+    {
+        throw Exception("Failed to map host buffer memory");
+    }
+}
+
 template <typename T>
 inline ct::vulkan::MemoryMap<T> ct::vulkan::MapMemory(const StagingBuffer<T>& buffer)
 {
     return MemoryMap<T>(buffer);
+}
+
+template<typename T>
+inline ct::vulkan::MemoryMap<T> ct::vulkan::MapMemory(const UniformBuffer<T>& buffer, const Fence& fence)
+{
+    return MemoryMap<T>(buffer, fence);
 }
