@@ -10,20 +10,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Setup project.
 project(cloud-tracer)
 
-set (CMAKE_MODULE_PATH
+
+# Modules.
+set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
     ${PROJECT_SOURCE_DIR}/cmake/modules
 )
 
 
 # Find required packages.
-find_package (Vulkan 1.1.130 REQUIRED)
-find_package (GLFW3 3.2 REQUIRED)
-
-
-# Project includes.
-include_directories (${Vulkan_INCLUDE_DIRS})
-include_directories (${GLFW3_INCLUDE_DIRS})
+find_package(Vulkan 1.1.130 REQUIRED)
+find_package(GLFW3 3.2 REQUIRED)
 
 
 # Set strict warnings and treat them as errors
@@ -34,24 +31,28 @@ else()
 endif()
 
 
-# Main executable.
-set(cloud_tracer_sources_main
+# Sources.
+set(CLOUD_TRACER_SOURCES_MAIN
     src/application.cpp
     src/main.cpp
-    src/window.cpp)
-set(cloud_tracer_sources_vulkan
+    src/window.cpp
+)
+set(CLOUD_TRACER_SOURCES_VULKAN
     src/vulkan/command_pool.cpp
     src/vulkan/device.cpp
     src/vulkan/debug_messenger.cpp
     src/vulkan/instance.cpp
     src/vulkan/memory.cpp
     src/vulkan/swapchain.cpp
-    src/vulkan/synchronization.cpp)
-set(cloud_tracer_sources_utils)
-set(cloud_tracer_headers_main
+    src/vulkan/synchronization.cpp
+)
+set(CLOUD_TRACER_SOURCES_UTILS
+)
+set(CLOUD_TRACER_HEADERS_MAIN
     src/application.h
-    src/window.h)
-set(cloud_tracer_headers_vulkan
+    src/window.h
+)
+set(CLOUD_TRACER_HEADERS_VULKAN
     src/vulkan/command_pool.h
     src/vulkan/device.h
     src/vulkan/debug_messenger.h
@@ -60,21 +61,37 @@ set(cloud_tracer_headers_vulkan
     src/vulkan/memory.h
     src/vulkan/object.h
     src/vulkan/swapchain.h
-    src/vulkan/synchronization.h)
-set(cloud_tracer_headers_utils
-    src/utils/ignore_unused.h)
-set(cloud_tracer_sources_all
-    ${cloud_tracer_sources_main}
-    ${cloud_tracer_sources_vulkan}
-    ${cloud_tracer_sources_utils})
-set(cloud_tracer_headers_all
-    ${cloud_tracer_headers_main}
-    ${cloud_tracer_headers_vulkan}
-    ${cloud_tracer_headers_utils})
-source_group("" FILES ${cloud_tracer_sources_main} ${cloud_tracer_headers_main})
-source_group("vulkan" FILES ${cloud_tracer_sources_vulkan} ${cloud_tracer_headers_vulkan})
-source_group("utils" FILES ${cloud_tracer_sources_utils} ${cloud_tracer_headers_utils})
-add_executable (cloud-tracer ${cloud_tracer_sources_all} ${cloud_tracer_headers_all})
-target_include_directories(cloud-tracer PRIVATE src)
-target_link_libraries(cloud-tracer ${Vulkan_LIBRARIES})
-target_link_libraries(cloud-tracer ${GLFW3_LIBRARIES})
+    src/vulkan/synchronization.h
+)
+set(CLOUD_TRACER_HEADERS_UTILS
+    src/utils/ignore_unused.h
+)
+set(CLOUD_TRACER_SOURCES_ALL
+    ${CLOUD_TRACER_SOURCES_MAIN}
+    ${CLOUD_TRACER_SOURCES_VULKAN}
+    ${CLOUD_TRACER_SOURCES_UTILS}
+)
+set(CLOUD_TRACER_HEADERS_ALL
+    ${CLOUD_TRACER_HEADERS_MAIN}
+    ${CLOUD_TRACER_HEADERS_VULKAN}
+    ${CLOUD_TRACER_HEADERS_UTILS}
+)
+
+
+# Group sources for IDE.
+source_group("" FILES ${CLOUD_TRACER_SOURCES_MAIN} ${CLOUD_TRACER_HEADERS_MAIN})
+source_group("vulkan" FILES ${CLOUD_TRACER_SOURCES_VULKAN} ${CLOUD_TRACER_HEADERS_VULKAN})
+source_group("utils" FILES ${CLOUD_TRACER_SOURCES_UTILS} ${CLOUD_TRACER_HEADERS_UTILS})
+
+
+# Main executable.
+add_executable (cloud-tracer ${CLOUD_TRACER_SOURCES_ALL} ${CLOUD_TRACER_HEADERS_ALL})
+target_include_directories(cloud-tracer
+    PRIVATE
+    src
+)
+
+
+# Dependencies
+target_link_libraries(cloud-tracer Vulkan::Vulkan)
+target_link_libraries(cloud-tracer glfw)

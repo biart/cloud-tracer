@@ -49,19 +49,19 @@ if (MSVC)
             "$ENV{GLFW3_LOCATION}/lib-vc2015"
         )
     endif ()
-elseif (MINGW)
+elseif(MINGW)
     set (GLFW3_GLFW_LIBRARY_LOCATION_HINTS
         ${GLFW3_GLFW_LIBRARY_LOCATION_HINTS}
         "${GLFW3_LOCATION}/lib-mingw-w64"
         "$ENV{GLFW3_LOCATION}/lib-mingw-w64"
     )
-endif ()
+endif()
 
-find_library (GLFW3_GLFW_LIBRARY
-	NAMES
-		glfw3
-	HINTS
-		${GLFW3_GLFW_LIBRARY_LOCATION_HINTS}
+find_library(GLFW3_GLFW_LIBRARY
+    NAMES
+        glfw3
+    HINTS
+        ${GLFW3_GLFW_LIBRARY_LOCATION_HINTS}
 )
 
 
@@ -70,10 +70,21 @@ find_package_handle_standard_args (GLFW3 DEFAULT_MSG GLFW3_INCLUDE_DIR GLFW3_GLF
 
 
 # Set the output variables.
-if (GLFW3_FOUND)
-    set (GLFW3_INCLUDE_DIRS ${GLFW3_INCLUDE_DIR})
-    set (GLFW3_LIBRARIES ${GLFW3_GLFW_LIBRARY})
-else ()
-    set (GLFW3_INCLUDE_DIRS)
-    set (GLFW3_LIBRARIES)
-endif ()
+if(GLFW3_FOUND)
+    set(GLFW3_INCLUDE_DIRS ${GLFW3_INCLUDE_DIR})
+    set(GLFW3_LIBRARIES ${GLFW3_GLFW_LIBRARY})
+else()
+    set(GLFW3_INCLUDE_DIRS)
+    set(GLFW3_LIBRARIES)
+endif()
+
+
+# Define an imported target
+add_library(glfw STATIC IMPORTED)
+set_target_properties(glfw
+    PROPERTIES
+    IMPORTED_LOCATION
+    ${GLFW3_GLFW_LIBRARY}
+    INTERFACE_INCLUDE_DIRECTORIES
+    ${GLFW3_INCLUDE_DIRS}
+)
