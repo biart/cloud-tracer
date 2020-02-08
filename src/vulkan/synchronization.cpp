@@ -80,7 +80,7 @@ bool Fence::WaitOnce(const float timeout) const
     if (!IsSignaled())
     {
         const auto timeout_microseconds = static_cast<uint64_t>(1.0e+9 * timeout);
-        const auto status = vkWaitForFences(device.GetHandle(), 1u, &handle, true, timeout);
+        const auto status = vkWaitForFences(device.GetHandle(), 1u, &handle, true, timeout_microseconds);
         switch (status)
         {
         case VK_TIMEOUT:
